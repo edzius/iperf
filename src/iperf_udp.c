@@ -72,8 +72,8 @@ iperf_udp_recv(struct iperf_stream *sp)
     if (r <= 0)
         return r;
 
-    sp->result->bytes_received += r;
-    sp->result->bytes_received_this_interval += r;
+    sp->result->bytes_rx += r;
+    sp->result->bytes_rx_this_interval += r;
 
     if (sp->test->udp_counters_64bit) {
 	memcpy(&sec, sp->buffer, sizeof(sec));
@@ -98,7 +98,7 @@ iperf_udp_recv(struct iperf_stream *sp)
     }
 
     if (sp->test->debug)
-	fprintf(stderr, "pcount %llu packet_count %d\n", pcount, sp->packet_count);
+	fprintf(stderr, "pcount %llu packet_count %llu\n", pcount, sp->packet_last_index);
 
     /*
      * Try to handle out of order packets.  The way we do this
@@ -113,22 +113,23 @@ iperf_udp_recv(struct iperf_stream *sp)
      * far (so we're expecting to see the packet with sequence number
      * sp->packet_count + 1 arrive next).
      */
-    if (pcount >= sp->packet_count + 1) {
+    if (pcount >= sp->packet_last_index + 1) {
 
 	/* Forward, but is there a gap in sequence numbers? */
-        if (pcount > sp->packet_count + 1) {
+        if (pcount > sp->packet_last_index + 1) {
 	    /* There's a gap so count that as a loss. */
-            sp->cnt_error += (pcount - 1) - sp->packet_count;
+            sp->result->packets_lost += (pcount - 1) - sp->packet_last_index;
         }
 	/* Update the highest sequence number seen so far. */
-        sp->packet_count = pcount;
+        sp->packet_last_index = pcount;
+        sp->result->packets_rx = pcount;
     } else {
 
 	/* 
 	 * Sequence number went backward (or was stationary?!?).
 	 * This counts as an out-of-order packet.
 	 */
-        sp->outoforder_packets++;
+        sp->result->packets_outoforder++;
 
 	/*
 	 * If we have lost packets, then the fact that we are now
@@ -136,12 +137,12 @@ iperf_udp_recv(struct iperf_stream *sp)
 	 * number gap that was counted as a loss.  So we can take
 	 * away a loss.
 	 */
-	if (sp->cnt_error > 0)
-	    sp->cnt_error--;
+	if (sp->result->packets_lost > 0)
+	    sp->result->packets_lost--;
 	
 	/* Log the out-of-order packet */
 	if (sp->test->debug) 
-	    fprintf(stderr, "OUT OF ORDER - incoming packet sequence %llu but expected sequence %d on stream %d", pcount, sp->packet_count, sp->socket);
+	    fprintf(stderr, "OUT OF ORDER - incoming packet sequence %llu but expected sequence %llu on stream %d", pcount, sp->packet_last_index, sp->socket);
     }
 
     /*
@@ -158,11 +159,11 @@ iperf_udp_recv(struct iperf_stream *sp)
     gettimeofday(&arrival_time, NULL);
 
     transit = timeval_diff(&sent_time, &arrival_time);
-    d = transit - sp->prev_transit;
+    d = transit - sp->packet_last_transit;
     if (d < 0)
         d = -d;
-    sp->prev_transit = transit;
-    sp->jitter += (d - sp->jitter) / 16.0;
+    sp->packet_last_transit = transit;
+    sp->result->jitter += (d - sp->result->jitter) / 16.0;
 
     return r;
 }
@@ -176,12 +177,12 @@ int
 iperf_udp_send(struct iperf_stream *sp)
 {
     int r;
-    int       size = sp->settings->blksize;
+    int size = sp->settings->blksize;
     struct timeval before;
 
     gettimeofday(&before, 0);
 
-    ++sp->packet_count;
+    ++sp->result->packets_tx;
 
     if (sp->test->udp_counters_64bit) {
 
@@ -190,7 +191,7 @@ iperf_udp_send(struct iperf_stream *sp)
 
 	sec = htonl(before.tv_sec);
 	usec = htonl(before.tv_usec);
-	pcount = htobe64(sp->packet_count);
+	pcount = htobe64(sp->result->packets_tx);
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
 	memcpy(sp->buffer+4, &usec, sizeof(usec));
@@ -203,7 +204,7 @@ iperf_udp_send(struct iperf_stream *sp)
 
 	sec = htonl(before.tv_sec);
 	usec = htonl(before.tv_usec);
-	pcount = htonl(sp->packet_count);
+	pcount = htonl(sp->result->packets_tx);
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
 	memcpy(sp->buffer+4, &usec, sizeof(usec));
@@ -216,11 +217,11 @@ iperf_udp_send(struct iperf_stream *sp)
     if (r < 0)
 	return r;
 
-    sp->result->bytes_sent += r;
-    sp->result->bytes_sent_this_interval += r;
+    sp->result->bytes_tx += r;
+    sp->result->bytes_tx_this_interval += r;
 
     if (sp->test->debug)
-	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, sp->result->bytes_sent);
+	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, sp->result->bytes_tx);
 
     return r;
 }

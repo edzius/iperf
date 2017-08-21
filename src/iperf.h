@@ -52,19 +52,25 @@ typedef uint64_t iperf_size_t;
 
 struct iperf_interval_results
 {
+    iperf_size_t bytes_tx;          /* Tx bytes in this interval */
+    iperf_size_t bytes_rx;          /* Rx bytes in this interval */
     iperf_size_t bytes_transferred; /* bytes transfered in this interval */
     struct timeval interval_start_time;
     struct timeval interval_end_time;
     float     interval_duration;
 
     /* for UDP */
-    int       interval_packet_count;
-    int       interval_outoforder_packets;
-    int       interval_cnt_error;
-    int       packet_count;
+    iperf_size_t packets_tx;
+    iperf_size_t packets_rx;
+    iperf_size_t packets_transferred;
+    iperf_size_t packets_outoforder;
+    iperf_size_t packets_lost;
     double    jitter;
-    int       outoforder_packets;
-    int       cnt_error;
+
+    iperf_size_t abs_packets_tx;
+    iperf_size_t abs_packets_rx;
+    iperf_size_t abs_packets_outoforder;
+    iperf_size_t abs_packets_lost;
 
     int omitted;
 #if (defined(linux) || defined(__FreeBSD__) || defined(__NetBSD__)) && \
@@ -86,11 +92,15 @@ struct iperf_interval_results
 
 struct iperf_stream_result
 {
-    iperf_size_t bytes_received;
-    iperf_size_t bytes_sent;
-    iperf_size_t bytes_received_this_interval;
-    iperf_size_t bytes_sent_this_interval;
-    iperf_size_t bytes_sent_omit;
+    iperf_size_t bytes_rx;
+    iperf_size_t bytes_rx_omit;
+    iperf_size_t bytes_tx;
+    iperf_size_t bytes_tx_omit;
+    iperf_size_t bytes_rx_this_interval;
+    iperf_size_t bytes_tx_this_interval;
+    iperf_size_t remote_bytes_rx;
+    iperf_size_t remote_bytes_tx;
+    int remote_retrans;
     int stream_prev_total_retrans;
     int stream_retrans;
     int stream_prev_total_sacks;
@@ -100,11 +110,25 @@ struct iperf_stream_result
     int stream_sum_rtt;
     int stream_count_rtt;
     int stream_max_snd_cwnd;
+    iperf_size_t packets_rx;
+    iperf_size_t packets_rx_omit;
+    iperf_size_t packets_tx;
+    iperf_size_t packets_tx_omit;
+    iperf_size_t packets_outoforder;
+    iperf_size_t packets_outoforder_omit;
+    iperf_size_t packets_lost;
+    iperf_size_t packets_lost_omit;
+    double jitter;
+    iperf_size_t remote_packets_rx;
+    iperf_size_t remote_packets_tx;
+    iperf_size_t remote_packets_lost;
+    iperf_size_t remote_packets_outoforder;
+    double remote_jitter;
     struct timeval start_time;
     struct timeval end_time;
     struct timeval start_time_fixed;
-    double sender_time;
-    double receiver_time;
+    double local_time;
+    double remote_time;
     TAILQ_HEAD(irlisthead, iperf_interval_results) interval_results;
     void     *data;
 };
@@ -156,19 +180,10 @@ struct iperf_stream
     int	      diskfile_left;	/* remaining file data on disk */
 
     /*
-     * for udp measurements - This can be a structure outside stream, and
-     * stream can have a pointer to this
+     * for UDP measurements
      */
-    int       packet_count;
-    int	      peer_packet_count;
-    int       omitted_packet_count;
-    double    jitter;
-    double    prev_transit;
-    int       outoforder_packets;
-    int       omitted_outoforder_packets;
-    int       cnt_error;
-    int       omitted_cnt_error;
-    uint64_t  target;
+    uint64_t  packet_last_index;
+    double    packet_last_transit;
 
     struct sockaddr_storage local_addr;
     struct sockaddr_storage remote_addr;
