@@ -28,3 +28,8 @@ examples/.libs
 examples/Makefile
 examples/mic
 examples/mis
+cscope.*
+tags
+*.swp
+*.swo
+*.out
