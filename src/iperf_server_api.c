@@ -272,6 +272,7 @@ iperf_test_reset(struct iperf_test *test)
     test->bytes_sent = 0;
 
     test->reverse = 0;
+    test->duplex = 0;
     test->sender = 0;
     test->sender_has_retransmits = 0;
     test->no_delay = 0;
@@ -576,7 +577,7 @@ iperf_run_server(struct iperf_test *test)
 
 			if (test->sender)
 			    FD_SET(s, &test->write_set);
-			else
+			if (test->receiver)
 			    FD_SET(s, &test->read_set);
 			if (s > test->max_fd) test->max_fd = s;
 
@@ -634,7 +635,7 @@ iperf_run_server(struct iperf_test *test)
 			cleanup_server(test);
                         return -1;
 		    }
-		    if (test->reverse)
+		    if (test->reverse || test->duplex)
 			if (iperf_create_send_timers(test) < 0) {
 			    cleanup_server(test);
 			    return -1;
@@ -647,15 +648,16 @@ iperf_run_server(struct iperf_test *test)
             }
 
             if (test->state == TEST_RUNNING) {
-                if (test->reverse) {
-                    // Reverse mode. Server sends.
-                    if (iperf_send(test, &write_set) < 0) {
+                if (!test->reverse || test->duplex) {
+                    // Regular mode. Server receives.
+                    if (iperf_recv(test, &read_set) < 0) {
 			cleanup_server(test);
                         return -1;
 		    }
-                } else {
-                    // Regular mode. Server receives.
-                    if (iperf_recv(test, &read_set) < 0) {
+                }
+                if (test->reverse || test->duplex) {
+                    // Reverse mode. Server sends.
+                    if (iperf_send(test, &write_set) < 0) {
 			cleanup_server(test);
                         return -1;
 		    }

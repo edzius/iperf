@@ -212,6 +212,7 @@ struct xbind_entry {
 struct iperf_test
 {
     char      role;                             /* 'c' lient or 's' erver */
+    int       receiver;                         /* client & reverse or server & !reverse */
     int       sender;                           /* client & !reverse or server & reverse */
     int       sender_has_retransmits;
     struct protocol *protocol;
@@ -247,10 +248,11 @@ struct iperf_test
     char     *server_authorized_users;
 
     /* boolean variables for Options */
-    int       daemon;                           /* -D option */
+    int       daemon;                           /* -D option (server) */
     int       one_off;                          /* -1 option */
     int       no_delay;                         /* -N option */
     int       reverse;                          /* -R option */
+    int       duplex;                           /* -D option (client) */
     int	      verbose;                          /* -V option - verbose mode */
     int	      json_output;                      /* -J option - JSON output */
     int	      zerocopy;                         /* -Z option - use sendfile */

@@ -51,6 +51,7 @@ extern const char test_start_blocks[];
 extern const char report_time[] ;
 extern const char report_connecting[] ;
 extern const char report_reverse[] ;
+extern const char report_duplex[] ;
 extern const char report_accepted[] ;
 extern const char report_cookie[] ;
 extern const char report_connected[] ;

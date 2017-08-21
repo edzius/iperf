@@ -178,6 +178,12 @@ iperf_get_test_reverse(struct iperf_test *ipt)
 }
 
 int
+iperf_get_test_duplex(struct iperf_test *ipt)
+{
+    return ipt->duplex;
+}
+
+int
 iperf_get_test_blksize(struct iperf_test *ipt)
 {
     return ipt->settings->blksize;
@@ -384,12 +390,21 @@ void
 iperf_set_test_role(struct iperf_test *ipt, char role)
 {
     ipt->role = role;
-    if (role == 'c')
+    if (role == 'c') {
 	ipt->sender = 1;
-    else if (role == 's')
+	ipt->receiver = 0;
+    } else if (role == 's') {
 	ipt->sender = 0;
-    if (ipt->reverse)
+	ipt->receiver = 1;
+    }
+    if (ipt->reverse) {
         ipt->sender = ! ipt->sender;
+        ipt->receiver = ! ipt->receiver;
+    }
+    if (ipt->duplex) {
+        ipt->sender = 1;
+        ipt->receiver = 1;
+    }
     check_sender_has_retransmits(ipt);
 }
 
@@ -409,8 +424,21 @@ void
 iperf_set_test_reverse(struct iperf_test *ipt, int reverse)
 {
     ipt->reverse = reverse;
-    if (ipt->reverse)
+    if (ipt->reverse) {
         ipt->sender = ! ipt->sender;
+        ipt->receiver = ! ipt->receiver;
+    }
+    check_sender_has_retransmits(ipt);
+}
+
+void
+iperf_set_test_duplex(struct iperf_test *ipt, int duplex)
+{
+    ipt->duplex = duplex;
+    if (ipt->duplex) {
+        ipt->sender = 1;
+        ipt->receiver = 1;
+    }
     check_sender_has_retransmits(ipt);
 }
 
@@ -510,7 +538,7 @@ void
 iperf_on_test_start(struct iperf_test *test)
 {
     if (test->json_output) {
-	cJSON_AddItemToObject(test->json_start, "test_start", iperf_json_printf("protocol: %s  num_streams: %d  blksize: %d  omit: %d  duration: %d  bytes: %d  blocks: %d  reverse: %d  tos: %d", test->protocol->name, (int64_t) test->num_streams, (int64_t) test->settings->blksize, (int64_t) test->omit, (int64_t) test->duration, (int64_t) test->settings->bytes, (int64_t) test->settings->blocks, test->reverse?(int64_t)1:(int64_t)0, test->settings->tos));
+	cJSON_AddItemToObject(test->json_start, "test_start", iperf_json_printf("protocol: %s  num_streams: %d  blksize: %d  omit: %d  duration: %d  bytes: %d  blocks: %d  reverse: %d  duplex: %d  tos: %d", test->protocol->name, (int64_t) test->num_streams, (int64_t) test->settings->blksize, (int64_t) test->omit, (int64_t) test->duration, (int64_t) test->settings->bytes, (int64_t) test->settings->blocks, test->reverse?(int64_t)1:(int64_t)0, test->duplex?(int64_t)1:(int64_t)0, test->settings->tos));
     } else {
 	if (test->verbose) {
 	    if (test->settings->bytes)
@@ -568,6 +596,9 @@ iperf_on_connect(struct iperf_test *test)
 	    iperf_printf(test, report_connecting, test->server_hostname, test->server_port);
 	    if (test->reverse)
 		iperf_printf(test, report_reverse, test->server_hostname);
+
+	    if (test->duplex)
+		iperf_printf(test, report_duplex, test->server_hostname);
 	}
     } else {
         len = sizeof(sa);
@@ -641,6 +672,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"length", required_argument, NULL, 'l'},
         {"parallel", required_argument, NULL, 'P'},
         {"reverse", no_argument, NULL, 'R'},
+        {"duplex", no_argument, NULL, 'D'},
         {"window", required_argument, NULL, 'w'},
         {"bind", required_argument, NULL, 'B'},
         {"cport", required_argument, NULL, OPT_CLIENT_PORT},
@@ -741,9 +773,18 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 }
                 break;
             case 'D':
-		test->daemon = 1;
-		server_flag = 1;
-	        break;
+		if (test->role == 's') {
+		    test->daemon = 1;
+		    server_flag = 1;
+	            break;
+		} else if (test->role == 'c') {
+		    iperf_set_test_duplex(test, 1);
+		    client_flag = 1;
+                    break;
+		} else {
+                    i_errno = IESERVCLIENT;
+                    return -1;
+		}
             case '1':
 		test->one_off = 1;
 		server_flag = 1;
@@ -1481,6 +1522,8 @@ send_parameters(struct iperf_test *test)
 	cJSON_AddNumberToObject(j, "parallel", test->num_streams);
 	if (test->reverse)
 	    cJSON_AddTrueToObject(j, "reverse");
+	if (test->duplex)
+	    cJSON_AddTrueToObject(j, "duplex");
 	if (test->settings->socket_bufsize)
 	    cJSON_AddNumberToObject(j, "window", test->settings->socket_bufsize);
 	if (test->settings->blksize)
@@ -1568,6 +1611,8 @@ get_parameters(struct iperf_test *test)
 	    test->num_streams = j_p->valueint;
 	if ((j_p = cJSON_GetObjectItem(j, "reverse")) != NULL)
 	    iperf_set_test_reverse(test, 1);
+	if ((j_p = cJSON_GetObjectItem(j, "duplex")) != NULL)
+	    iperf_set_test_duplex(test, 1);
 	if ((j_p = cJSON_GetObjectItem(j, "window")) != NULL)
 	    test->settings->socket_bufsize = j_p->valueint;
 	if ((j_p = cJSON_GetObjectItem(j, "len")) != NULL)
@@ -2277,6 +2322,7 @@ iperf_reset_test(struct iperf_test *test)
     SLIST_INIT(&test->streams);
 
     test->role = 's';
+    test->receiver = 1;
     test->sender = 0;
     test->sender_has_retransmits = 0;
     set_protocol(test, Ptcp);
@@ -2295,6 +2341,7 @@ iperf_reset_test(struct iperf_test *test)
     test->blocks_sent = 0;
 
     test->reverse = 0;
+    test->duplex = 0;
     test->no_delay = 0;
 
     FD_ZERO(&test->read_set);
@@ -2655,7 +2702,7 @@ iperf_print_results(struct iperf_test *test)
 	    sp->result->receiver_time = sp->result->sender_time;
 	}
     }
-    else {
+    if (test->receiver) {
 	sp->result->receiver_time = end_time;
 	if (sp->result->sender_time == 0.0) {
 	    sp->result->sender_time = sp->result->receiver_time;
@@ -2680,7 +2727,7 @@ iperf_print_results(struct iperf_test *test)
 	    sender_packet_count = sp->packet_count;
 	    receiver_packet_count = sp->peer_packet_count;
 	}
-	else {
+	if (test->receiver) {
 	    sender_packet_count = sp->peer_packet_count;
 	    receiver_packet_count = sp->packet_count;
 	}
@@ -2955,7 +3002,7 @@ iperf_print_results(struct iperf_test *test)
 		snd_congestion = test->congestion_used;
 		rcv_congestion = test->remote_congestion_used;
 	    }
-	    else {
+	    if (test->receiver) {
 		snd_congestion = test->remote_congestion_used;
 		rcv_congestion = test->congestion_used;
 	    }
@@ -2977,7 +3024,7 @@ iperf_print_results(struct iperf_test *test)
 		    snd_congestion = test->congestion_used;
 		    rcv_congestion = test->remote_congestion_used;
 		}
-		else {
+		if (test->receiver) {
 		    snd_congestion = test->remote_congestion_used;
 		    rcv_congestion = test->congestion_used;
 		}

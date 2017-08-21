@@ -148,6 +148,7 @@ const char usage_longstr[] = "Usage: iperf3 [-s|-c host] [options]\n"
                            "  --cport         <port>    bind to a specific client port (TCP and UDP, default: ephemeral port)\n"
                            "  -P, --parallel  #         number of parallel client streams to run\n"
                            "  -R, --reverse             run in reverse mode (server sends, client receives)\n"
+                           "  -D, --duplex              run in bidirection mode (both sides sends and receives)\n"
                            "  -w, --window    #[KMG]    set window size / socket buffer size\n"
 #if defined(HAVE_TCP_CONGESTION)
                            "  -C, --congestion <algo>   set TCP congestion control algorithm (Linux and FreeBSD only)\n"
@@ -270,6 +271,9 @@ const char report_authetication_failed[] =
 
 const char report_reverse[] =
 "Reverse mode, remote host %s is sending\n";
+
+const char report_duplex[] =
+"Duplex mode, both local and remote %s hosts are sending\n";
 
 const char report_accepted[] =
 "Accepted connection from %s, port %d\n";
