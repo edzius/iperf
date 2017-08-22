@@ -270,6 +270,8 @@ struct iperf_test
     int       duplex;                           /* -D option (client) */
     int	      verbose;                          /* -V option - verbose mode */
     int	      json_output;                      /* -J option - JSON output */
+    char     *json_file;                        /* -J option - JSON output */
+    FILE     *jsonfp;
     int	      zerocopy;                         /* -Z option - use sendfile */
     int       debug;				/* -d option - enable debug */
     int	      get_server_output;		/* --get-server-output */

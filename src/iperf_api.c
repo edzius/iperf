@@ -659,7 +659,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"daemon", no_argument, NULL, 'D'},
         {"one-off", no_argument, NULL, '1'},
         {"verbose", no_argument, NULL, 'V'},
-        {"json", no_argument, NULL, 'J'},
+        {"json", required_argument, NULL, 'J'},
         {"version", no_argument, NULL, 'v'},
         {"server", no_argument, NULL, 's'},
         {"client", required_argument, NULL, 'c'},
@@ -737,7 +737,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
     char *client_username = NULL, *client_rsa_public_key = NULL;
 #endif /* HAVE_SSL */
 
-    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
+    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJ:vsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
         switch (flag) {
             case 'p':
                 test->server_port = atoi(optarg);
@@ -794,6 +794,8 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 break;
             case 'J':
                 test->json_output = 1;
+		if (strncmp(optarg, "-", strlen(optarg)))
+			test->json_file = strdup(optarg);
                 break;
             case 'v':
                 printf("%s (cJSON %s)\n%s\n%s\n", version, cJSON_Version(), get_system_info(),
@@ -1095,6 +1097,15 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
     if (test->logfile) {
         test->outfile = fopen(test->logfile, "a+");
         if (test->outfile == NULL) {
+            i_errno = IELOGFILE;
+            return -1;
+        }
+    }
+
+    /* Set json print to file if specified, otherwise use the default (stdout) */
+    if (test->json_file) {
+        test->jsonfp = fopen(test->json_file, "a+");
+        if (test->jsonfp == NULL) {
             i_errno = IELOGFILE;
             return -1;
         }
@@ -2044,6 +2055,7 @@ iperf_new_test()
 
     /* By default all output goes to stdout */
     test->outfile = stdout;
+    test->jsonfp = stdout;
 
     return test;
 }
@@ -3540,7 +3552,7 @@ iperf_json_finish(struct iperf_test *test)
     test->json_output_string = cJSON_Print(test->json_top);
     if (test->json_output_string == NULL)
         return -1;
-    fprintf(test->outfile, "%s\n", test->json_output_string);
+    fprintf(test->jsonfp, "%s\n", test->json_output_string);
     iflush(test);
     cJSON_Delete(test->json_top);
     test->json_top = test->json_start = test->json_connected = test->json_intervals = test->json_server_output = test->json_end = NULL;
