@@ -64,7 +64,6 @@ iperf_sctp_recv(struct iperf_stream *sp)
         return r;
 
     sp->result->bytes_rx += r;
-    sp->result->bytes_rx_this_interval += r;
 
     return r;
 #else
@@ -89,7 +88,6 @@ iperf_sctp_send(struct iperf_stream *sp)
         return r;    
 
     sp->result->bytes_tx += r;
-    sp->result->bytes_tx_this_interval += r;
 
     return r;
 #else

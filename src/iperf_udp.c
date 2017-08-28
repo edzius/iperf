@@ -73,7 +73,6 @@ iperf_udp_recv(struct iperf_stream *sp)
         return r;
 
     sp->result->bytes_rx += r;
-    sp->result->bytes_rx_this_interval += r;
 
     if (sp->test->udp_counters_64bit) {
 	memcpy(&sec, sp->buffer, sizeof(sec));
@@ -218,7 +217,6 @@ iperf_udp_send(struct iperf_stream *sp)
 	return r;
 
     sp->result->bytes_tx += r;
-    sp->result->bytes_tx_this_interval += r;
 
     if (sp->test->debug)
 	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, sp->result->bytes_tx);

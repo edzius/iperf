@@ -67,6 +67,8 @@ struct iperf_interval_results
     iperf_size_t packets_lost;
     double    jitter;
 
+    iperf_size_t abs_bytes_tx;
+    iperf_size_t abs_bytes_rx;
     iperf_size_t abs_packets_tx;
     iperf_size_t abs_packets_rx;
     iperf_size_t abs_packets_outoforder;
@@ -96,8 +98,6 @@ struct iperf_stream_result
     iperf_size_t bytes_rx_omit;
     iperf_size_t bytes_tx;
     iperf_size_t bytes_tx_omit;
-    iperf_size_t bytes_rx_this_interval;
-    iperf_size_t bytes_tx_this_interval;
     iperf_size_t remote_bytes_rx;
     iperf_size_t remote_bytes_tx;
     int remote_retrans;

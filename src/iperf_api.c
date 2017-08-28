@@ -2386,7 +2386,6 @@ iperf_reset_stats(struct iperf_test *test)
 	rp->jitter = 0;
         rp->bytes_tx_omit = rp->bytes_tx;
         rp->bytes_rx_omit = rp->bytes_rx;
-        rp->bytes_tx_this_interval = rp->bytes_rx_this_interval = 0;
 	if (test->sender && test->sender_has_retransmits) {
 	    struct iperf_interval_results ir; /* temporary results structure */
 	    save_tcpinfo(sp, &ir);
@@ -2415,9 +2414,6 @@ iperf_stats_callback(struct iperf_test *test)
     SLIST_FOREACH(sp, &test->streams, streams) {
         rp = sp->result;
 
-	temp.bytes_tx = rp->bytes_tx_this_interval;
-	temp.bytes_rx = rp->bytes_rx_this_interval;
-
 	irp = TAILQ_LAST(&rp->interval_results, irlisthead);
         /* result->end_time contains timestamp of previous interval */
         if ( irp != NULL ) /* not the 1st interval */
@@ -2429,6 +2425,7 @@ iperf_stats_callback(struct iperf_test *test)
         memcpy(&temp.interval_end_time, &rp->end_time, sizeof(struct timeval));
         temp.interval_duration = timeval_diff(&temp.interval_start_time, &temp.interval_end_time);
         //temp.interval_duration = timeval_diff(&temp.interval_start_time, &temp.interval_end_time);
+
 	if (test->protocol->id == Ptcp) {
 	    if ( has_tcpinfo()) {
 		save_tcpinfo(sp, &temp);
@@ -2458,22 +2455,37 @@ iperf_stats_callback(struct iperf_test *test)
 		    temp.pmtu = get_pmtu(&temp);
 		}
 	    }
+	}
+
+	if (irp == NULL) {
+	    temp.abs_bytes_tx = temp.bytes_tx = sp->result->bytes_tx;
+	    temp.abs_bytes_rx = temp.bytes_rx = sp->result->bytes_rx;
 	} else {
+	    temp.abs_bytes_tx = sp->result->bytes_tx;
+	    temp.abs_bytes_rx = sp->result->bytes_rx;
+	    temp.bytes_tx = sp->result->bytes_tx - irp->abs_bytes_tx;
+	    temp.bytes_rx = sp->result->bytes_rx - irp->abs_bytes_rx;
+	}
+
+	if (test->protocol->id == Pudp) {
 	    if (irp == NULL) {
-		temp.packets_tx = sp->result->packets_tx;
-		temp.packets_rx = sp->result->packets_rx;
-		temp.packets_outoforder = sp->result->packets_outoforder;
-		temp.packets_lost = sp->result->packets_lost;
+		temp.abs_packets_tx = temp.packets_tx = sp->result->packets_tx;
+		temp.abs_packets_rx = temp.packets_rx = sp->result->packets_rx;
+		temp.abs_packets_outoforder = temp.packets_outoforder = sp->result->packets_outoforder;
+		temp.abs_packets_lost = temp.packets_lost = sp->result->packets_lost;
 	    } else {
-		temp.packets_tx = sp->result->packets_tx - irp->packets_tx;
-		temp.packets_rx = sp->result->packets_rx - irp->packets_rx;
-		temp.packets_outoforder = sp->result->packets_outoforder - irp->packets_outoforder;
-		temp.packets_lost = sp->result->packets_lost - irp->packets_lost;
+		temp.abs_packets_tx = sp->result->packets_tx;
+		temp.abs_packets_rx = sp->result->packets_rx;
+		temp.abs_packets_outoforder = sp->result->packets_outoforder;
+		temp.abs_packets_lost = sp->result->packets_lost;
+		temp.packets_tx = sp->result->packets_tx - irp->abs_packets_tx;
+		temp.packets_rx = sp->result->packets_rx - irp->abs_packets_rx;
+		temp.packets_outoforder = sp->result->packets_outoforder - irp->abs_packets_outoforder;
+		temp.packets_lost = sp->result->packets_lost - irp->abs_packets_lost;
 	    }
 	    temp.jitter = sp->result->jitter;
 	}
         add_to_interval_list(rp, &temp);
-        rp->bytes_tx_this_interval = rp->bytes_rx_this_interval = 0;
     }
 }
 
