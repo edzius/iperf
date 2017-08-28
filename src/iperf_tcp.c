@@ -88,7 +88,7 @@ iperf_tcp_send(struct iperf_stream *sp)
     sp->result->bytes_tx += r;
 
     if (sp->test->debug)
-	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, sp->result->bytes_tx);
+	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, (long long unsigned int) sp->result->bytes_tx);
 
     return r;
 }

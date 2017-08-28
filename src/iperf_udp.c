@@ -97,7 +97,7 @@ iperf_udp_recv(struct iperf_stream *sp)
     }
 
     if (sp->test->debug)
-	fprintf(stderr, "pcount %llu packet_count %llu\n", pcount, sp->packet_last_index);
+	fprintf(stderr, "pcount %llu packet_count %llu\n", (long long unsigned int) pcount, (long long unsigned int) sp->packet_last_index);
 
     /*
      * Try to handle out of order packets.  The way we do this
@@ -141,7 +141,8 @@ iperf_udp_recv(struct iperf_stream *sp)
 	
 	/* Log the out-of-order packet */
 	if (sp->test->debug) 
-	    fprintf(stderr, "OUT OF ORDER - incoming packet sequence %llu but expected sequence %llu on stream %d", pcount, sp->packet_last_index, sp->socket);
+	    fprintf(stderr, "OUT OF ORDER - incoming packet sequence %llu but expected sequence %llu on stream %d",
+		    (long long unsigned int) pcount, (long long unsigned int) sp->packet_last_index, sp->socket);
     }
 
     /*
@@ -219,7 +220,7 @@ iperf_udp_send(struct iperf_stream *sp)
     sp->result->bytes_tx += r;
 
     if (sp->test->debug)
-	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, sp->result->bytes_tx);
+	printf("sent %d bytes of %d, total %llu\n", r, sp->settings->blksize, (long long unsigned int) sp->result->bytes_tx);
 
     return r;
 }
