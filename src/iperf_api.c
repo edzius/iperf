@@ -1726,13 +1726,13 @@ send_results(struct iperf_test *test)
 		    // XXX(edzius): do we need here to know received bytes/packets omits???
 		    cJSON_AddNumberToObject(j_stream, "id", sp->id);
 		    cJSON_AddNumberToObject(j_stream, "bytes_tx", sp->result->bytes_tx - sp->result->bytes_tx_omit);
-		    cJSON_AddNumberToObject(j_stream, "bytes_rx", sp->result->bytes_rx);
+		    cJSON_AddNumberToObject(j_stream, "bytes_rx", sp->result->bytes_rx - sp->result->bytes_rx_omit);
 		    cJSON_AddNumberToObject(j_stream, "retransmits", retransmits);
 		    cJSON_AddNumberToObject(j_stream, "jitter", sp->result->jitter);
-		    cJSON_AddNumberToObject(j_stream, "errors", sp->result->packets_lost);
-		    cJSON_AddNumberToObject(j_stream, "outoforder", sp->result->packets_outoforder);
+		    cJSON_AddNumberToObject(j_stream, "errors", sp->result->packets_lost - sp->result->packets_lost_omit);
+		    cJSON_AddNumberToObject(j_stream, "outoforder", sp->result->packets_outoforder - sp->result->packets_outoforder_omit);
 		    cJSON_AddNumberToObject(j_stream, "packets_tx", sp->result->packets_tx - sp->result->packets_tx_omit);
-		    cJSON_AddNumberToObject(j_stream, "packets_rx", sp->result->packets_rx);
+		    cJSON_AddNumberToObject(j_stream, "packets_rx", sp->result->packets_rx - sp->result->packets_rx_omit);
 
 		    start_time = timeval_diff(&sp->result->start_time, &sp->result->start_time);
 		    end_time = timeval_diff(&sp->result->start_time, &sp->result->end_time);
@@ -2380,13 +2380,12 @@ iperf_reset_stats(struct iperf_test *test)
     SLIST_FOREACH(sp, &test->streams, streams) {
 	rp = sp->result;
 	rp->packets_tx_omit = rp->packets_tx;
+	rp->packets_rx_omit = rp->packets_rx;
         rp->packets_lost_omit = rp->packets_lost;
         rp->packets_outoforder_omit = rp->packets_outoforder;
 	rp->jitter = 0;
         rp->bytes_tx_omit = rp->bytes_tx;
         rp->bytes_rx_omit = rp->bytes_rx;
-	// FIXME(edzius): use omit policy everywhere.
-        rp->bytes_rx = 0;
         rp->bytes_tx_this_interval = rp->bytes_rx_this_interval = 0;
 	if (test->sender && test->sender_has_retransmits) {
 	    struct iperf_interval_results ir; /* temporary results structure */
@@ -2727,7 +2726,7 @@ iperf_print_results(struct iperf_test *test)
 	}
 
 	local_bytes_tx = sp->result->bytes_tx - sp->result->bytes_tx_omit;
-	local_bytes_rx = sp->result->bytes_rx;
+	local_bytes_rx = sp->result->bytes_rx - sp->result->bytes_rx_omit;
 	// XXX(edzius): Backwards compatibility metric (overall counter)
 	local_bytes_transferred = local_bytes_tx + local_bytes_rx;
 
